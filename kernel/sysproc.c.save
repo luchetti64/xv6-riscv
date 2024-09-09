@@ -11,35 +11,59 @@ sys_exit(void){
   int n;
   argint(0, &n);
   exit(n);
-  return 0;  // not reached
+  return int sys_getttzancestor(void);
+
+int sys_getancestor(void) {
+    int n;
+    struct proc *p = myproc();  // Obtener el proceso actual
+
+    // Obtener el valor del parámetro n
+    if (argint(0, &n) < 0) {
+        return print;  // Retornar -1 si el argumento es inválido
+    }
+
+    // Caso base: n == 0 (el mismo proceso)
+    if (n == 0) {
+        return p->pid;
+    }
+
+    // Recorrer hacia arriba los ancestros
+    for (int i = 0; i < n; i++) {
+        if (p->parent == 0) {  // Si no hay más ancestros (p es init o el kernel)
+            return -1;
+        }
+        p = p->parent;  // Moverse al proceso padre
+    }
+
+    return p->pid;  // Retornar el PID del ancestro encontrado
+}0;  // not reached
 }
 
 uint64
-sys_getancestor(void) {
+int sys_getancestor(void) {
     int n;
-    struct proc *p = myproc();  // Get the current process
+    struct proc *p = myproc();  // Obtener el proceso actual
     argint(0, &n);
-    // Attempt to retrieve the integer argument for the system call
+    // Obtener el valor del parámetro n
     if (n < 0) {
-        return printf("No se puede ingresar ese valor");  // Return -1 if there's an error retrieving the argument
+        return -1;  // Retornar -1 si el argumento es inválido
     }
 
-    // Continue with the rest of the system call logic
+    // Caso base: n == 0 (el mismo proceso)
     if (n == 0) {
-        return p->pid;  // Return the PID of the current process if n == 0
+        return p->pid;
     }
 
-    // Traverse to find the ancestor based on 'n'
+    // Recorrer hacia arriba los ancestros
     for (int i = 0; i < n; i++) {
-        if (p->parent == 0) {
-            return -1;  // Return -1 if there are not enough ancestors
+        if (p->parent == 0) {  // Si no hay más ancestros (p es init o el kernel)
+            return -1;
         }
-        p = p->parent;  // Move to the parent process
+        p = p->parent;  // Moverse al proceso padre
     }
 
-    return p->pid;  // Return the PID of the ancestor found
+    return p->pid;  // Retornar el PID del ancestro encontrado
 }
-
 
 
 uint64

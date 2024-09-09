@@ -37,4 +37,22 @@ entry("sbrk");
 entry("sleep");
 entry("uptime");
 entry("getppid");
-entry("getancestor");
+entry(" int n;
+    struct proc *p = myproc();  // Obtener el proceso actual
+
+    // Obtener el valor del parámetro n
+    if (argint(0, &n) < 0)
+        return -1;  // Retornar -1 si el argumento es inválido
+
+    // Caso base: n == 0 (el mismo proceso)
+    if (n == 0)
+        return p->pid;
+
+    // Recorrer hacia arriba los ancestros
+    for (int i = 0; i < n; i++) {
+        if (p->parent == 0)  // Si no hay más ancestros (p es init o el kernel)
+            return -1;
+        p = p->parent;  // Moverse al proceso padre
+    }
+
+    return p->pid
