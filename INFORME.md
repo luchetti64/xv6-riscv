@@ -1,36 +1,53 @@
-PARA INSTALAR XV6
-1. INSTALAR WSL PARA LINUX (FACIL) ABRIR CONSOLA POWERSHELL MODO 
-ADMINISTRADOR, DESCARGAR WSL Y DESCARGA UBUNTU POR DEFECTO, CONFIGURAR 
-UBUNTU.
-2. INSTALAR TOOLCHAIN (DIFICIL). PRIMERO INSTALAR TODAS LAS 
-DEPENDENCIAS POSIBLES (PREUNTAR A CHAT GPT) QUE TE DE TODAS DE TODAS
-INSISTIRLE PARA QUE TE DE TODAS. ADEMAS HACER UPDATE
-3. CLONAR RISV-GNU TOOLCHAINE, CONFIGURAR, SUDO MAKE Y AGREGAR
-AL PATH AGREGANDOLO AL ARCHIVO BASHRC DEL UBUNTU. AGREGAR AL FINAL
-QUE EXPORTE PATH
-4. EN LA MISMA CARPETA DEL TOOLCHAIN, INSTALAR REPOSITORIO DE GITHUB 
-DE QEMU, CLONAR, CONFIGURAR Y SUDO MAKE
-5. DENTRO DE LA MISMA CARPETA DEL QEMU, CLONAR XV6-RISCV DE SU RESPECTIVO
+Para iniciar esta tarea, como siempre revise toda la informacion disponible
+a mano, leyendo (de manera rapida) el capitulo de locks y shceduling 
+del lubro de XV6. Si bien no ayudaron tanto como en otras tareas, si 
+sirvieron para saber donde se encuentra que funcion/sistemcall/mecanismo.
+El default scheduler de xv6 es el round-robbing el cual utiliza quantum
+de tiempo para asegurar lo maximo que puede estar un proceso antes de ser
+interrumpido, si es interrumpido se guarda su proceso y se agrega a la cola
 
-REPOSITORIO, HACER MAKE QEMU, Y VER QUE EJECUTE (EJECUTA! LO HICE!)
+lo cual asegura justicia (prLa funcion scheduler ya existe en xv6 
+dentro del archico proc.c, implementado con su respectivo codigo.
 
+La idea del sistema de prioridades es si llega un proceso nuevo, se le
+otorga la prioridad mas alta (numero mas bajo), y el resto se agrega 
+"a la cola" al sumar 1. Si llegan mas procesos se sigue sumando 1, 
+acumulando dicho contador, hasta llegar al 9, donde ya se le decide dar
+maxima prioridad a dicho proceso porque no ha sido ejecutado por muchho 
+tiempo, rompiendo con el principio de la justicia. Por ende nuevos procesos
+entran de inmediato, y a medida que se completan los procesos se va
+eligiendo los que vienen por la prioridad asignada en el boost.
 
-DIFICULTADES: 
-ESTUVE 2 DIAS ENTEROS INTENTANDO QUE FUNCIONE SI SUMAMOS TODAS LAS HORAS
+Para implementar esto se implementaron las estructura del proceso en si
+para que esta tenga un int para ver que nivel de prioridad tiene, y
+el boost para ver que boost tiene (en el struct proc dentro de proc.h)
+Luego inicializar el valor de priority y boost en el archivo de allocproc
+(le estamos dando memoria a estas variables) y con esas variables, modificar el shceduler.
+Antes nuestro scheduler simplemente cerraba con lock la seccion para que
+no fuese interrumpido, hacia un switch entre procesos guardando el contexto
+Y soltaba el lock. Ahora para implementar prioridad, al proceso que entra
+le agregamos su prioridad, y agregamos condiciones para ver si este esta en
+los limites dichos anteriormente. Luego mediante otro for vemos si el 
+proceso es igual a 0 (maxima prioridad) o si la prioridad es menor seleccionado
+libera el lock del proceso con mayir prioridad para cederlo al nuevo de 
+menor prioridad. Luego hacemos el switch entre los dos e inciamos la ejecucion.
 
-ERRORES: 
--COMPILABA, CORRIA QEMU, PERO NO CORRIA XV6-RISCV
--FALTABAN DEPENDENCIAS AL INSTALAR POR LO CUAL EL TOOLCHAIN SE INSTALABA
-MAL O SE PARABA DE INSTALAR
--NO RECONOCIA QUE ESTABA EL XV6-RISCV AUNQUE SE MODIFICARA EL PATH
--NO CARGABA INTERFAZ GRAFICA (AUNQUE NO FUE NUNCA EL PROBLEMA ESE)
--AL ESTAR EN DISTINTAS CARPETAS TAL VEZ NO SABIA QUE ESTABA TODO INSTALADO
+Haciendo asi un round robin con prioridad. Finalmente para ver la prioridad
+creamos un programa donde se crean 20 hijos y se les asigna prioridad segun
+como llegan. En este caso se ejecutan en orden de llegada, pero si fuesen 
+procesos mas largos debido al time slice cambiarian.
 
--MODIFICAR MAKEFILE PARA QUE FUNCIONE
-- EJECUTAR MANUALMENTE EL MAKE QEMU
-- AVERIGUAR COMO ABRIR SOLLO QEMU Y LLORAR AL DARTE CUENTA QUE NO
-ESTA CORRIENDO XV6
--PENSAR QUE ESTAS DENTRO DE XV6, HACER ECHO HELLO WORLD Y QUE TE RESPONDA
-PERO PORQUE ESTAS EN UBUNTU, NO EN XV6
+ALgunas dificultades fueron la poca documentacion. Solamente habia 
+un articulo que ayudaba del cual se basaban todos los videos de youtube
+El articulo es excelente (https://medium.com/@harshalshree03/xv6-implementing-ps-nice-system-calls-and-priority-scheduling-b12fa10494e4)
+y de hecho me di cuenta que hace lo mismo que se pide para la tarea
+pero al revez, y entrega un resultado mas completo del que consegui,
+pero no tuve mas tiempo para implementarlo. Dependi demasiado de chatgpt
+debido a la poca documentacion existente, confiando en la logica
+que utiliza para resolver el problema de prioridad y ajustando lo que
+le pido si da algo sin sentido, no me gusta sentir que chat gpt me 
+hizo todo el trabajo. Finalmente, no pude implementar un sistem call
+que pudiese imprimirme la prioridad y boost actual de los procesos creados
+siempre me tiraba error al invocar el proc, y no tuve mas tiempo para resolverlo
 
-ADJUNTO IMAGENES CON PRUEBAS DE TODO
+Y asi fue como desarrolle la tarea 2.
