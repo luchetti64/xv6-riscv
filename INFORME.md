@@ -1,53 +1,60 @@
-Para iniciar esta tarea, como siempre revise toda la informacion disponible
-a mano, leyendo (de manera rapida) el capitulo de locks y shceduling 
-del lubro de XV6. Si bien no ayudaron tanto como en otras tareas, si 
-sirvieron para saber donde se encuentra que funcion/sistemcall/mecanismo.
-El default scheduler de xv6 es el round-robbing el cual utiliza quantum
-de tiempo para asegurar lo maximo que puede estar un proceso antes de ser
-interrumpido, si es interrumpido se guarda su proceso y se agrega a la cola
+Como siempre lo primero que hice fue contextulizarme para la tarea mediante
+libros o videos en youtube para saber lo que se pide. Leyendo el libro
+de XV6, viendo la clase y buscando en youtube me familiarice con el concepto
+de paging y porque lo queremos para la proteccion de memoria. La proteccion
+de memoria tiene como proposito evitar que un proceso en un sistema operativo
+acceda a llamada ocultada para cualquier ocupacion de memoria que no le ha sido asignada.
 
-lo cual asegura justicia (prLa funcion scheduler ya existe en xv6 
-dentro del archico proc.c, implementado con su respectivo codigo.
 
-La idea del sistema de prioridades es si llega un proceso nuevo, se le
-otorga la prioridad mas alta (numero mas bajo), y el resto se agrega 
-"a la cola" al sumar 1. Si llegan mas procesos se sigue sumando 1, 
-acumulando dicho contador, hasta llegar al 9, donde ya se le decide dar
-maxima prioridad a dicho proceso porque no ha sido ejecutado por muchho 
-tiempo, rompiendo con el principio de la justicia. Por ende nuevos procesos
-entran de inmediato, y a medida que se completan los procesos se va
-eligiendo los que vienen por la prioridad asignada en el boost.
+Para evitar esto, se utiliza la segmentacion conocida como paging la cual
+(de forma muy resumida) divide el espacio de direcciones de memoria
+en pequeñas piezas identicas llamadas paginas, las cuales mediante una
+memoria virtual se consigue que cada pagina resida en cualquier ubicacion
+dentro de la memoria fisica, y para mantener rastro de esta y asegurar que
+la memoria virtual no apunta a algo distinto en la memoria fisica, se utiliza
+una tabla de paginas, la cual se utiliza para este proyecto.
 
-Para implementar esto se implementaron las estructura del proceso en si
-para que esta tenga un int para ver que nivel de prioridad tiene, y
-el boost para ver que boost tiene (en el struct proc dentro de proc.h)
-Luego inicializar el valor de priority y boost en el archivo de allocproc
-(le estamos dando memoria a estas variables) y con esas variables, modificar el shceduler.
-Antes nuestro scheduler simplemente cerraba con lock la seccion para que
-no fuese interrumpido, hacia un switch entre procesos guardando el contexto
-Y soltaba el lock. Ahora para implementar prioridad, al proceso que entra
-le agregamos su prioridad, y agregamos condiciones para ver si este esta en
-los limites dichos anteriormente. Luego mediante otro for vemos si el 
-proceso es igual a 0 (maxima prioridad) o si la prioridad es menor seleccionado
-libera el lock del proceso con mayir prioridad para cederlo al nuevo de 
-menor prioridad. Luego hacemos el switch entre los dos e inciamos la ejecucion.
+Los archivos que se tuvieron que modificar fueron los siguientes:
+-Makefile: Para poder ejecutar el codigo C de prueba
+User:
+-User.h: Agregar las funciones como int y sus parametros (definir)
+-Usys.pl: Para generar la funcion en si (tanto mprotect como munprotect)
+-proteger.c: Donde ponemos el codigo de prueba
+Kernel:
+-Syscall.h: Definir las llamadas a sistema m_protect y mun-protect
+-Syscall.c: Agregar las llamadas a sistema de m_protect y mun:_protect
 
-Haciendo asi un round robin con prioridad. Finalmente para ver la prioridad
-creamos un programa donde se crean 20 hijos y se les asigna prioridad segun
-como llegan. En este caso se ejecutan en orden de llegada, pero si fuesen 
-procesos mas largos debido al time slice cambiarian.
+Y finalmente vm.c. Este es el archivo mas importante y en el cual me voy a explayar mas,
+ya que el resto de los pasos son rutinarios y ya fueron hechos anteriormente.
 
-ALgunas dificultades fueron la poca documentacion. Solamente habia 
-un articulo que ayudaba del cual se basaban todos los videos de youtube
-El articulo es excelente (https://medium.com/@harshalshree03/xv6-implementing-ps-nice-system-calls-and-priority-scheduling-b12fa10494e4)
-y de hecho me di cuenta que hace lo mismo que se pide para la tarea
-pero al revez, y entrega un resultado mas completo del que consegui,
-pero no tuve mas tiempo para implementarlo. Dependi demasiado de chatgpt
-debido a la poca documentacion existente, confiando en la logica
-que utiliza para resolver el problema de prioridad y ajustando lo que
-le pido si da algo sin sentido, no me gusta sentir que chat gpt me 
-hizo todo el trabajo. Finalmente, no pude implementar un sistem call
-que pudiese imprimirme la prioridad y boost actual de los procesos creados
-siempre me tiraba error al invocar el proc, y no tuve mas tiempo para resolverlo
+Vm quiere decir virtual memory, y aca es donde se maneja todo lo que tiene que ver con el manejo de memoria
+virtual y paginacion de esta, y la tabla de paginas en si. Este archivo 
+llama a memlayout.h, donde se encuentra la base (kernbase) denuestra memoria
+y el phystop de esta (o el limite), y es la que maneja la memoria fisica.
+el riscv.h donde estan las importantes variables del pgsize (el tamaño de la pagina)
+y el pgshift (offset de la pagina), ademas de las PTE o page table entries
+que permiten PTE_: R read, W write, U user, V si esta presente y X si se
+puede ejecutar.Finalmente tenemos el vc.m, que incluye la creacion
+del pagetable, walk que retorna la direccion virtual de nuestra pagina
+que puede ser asi ubicada en el espacio fisico, y mmappages que crea
+una page table entry para dicha direccion virtual, y mas funciones para manejar la memoria virtual
 
-Y asi fue como desarrolle la tarea 2.
+Dentro de este archivo agregamos el m protect, el cual inicia con un adress, el largo que vamos a proteger
+(lo multiplica por el largo de la pagina por esto), tenemos el inciio y el fin
+Luego recorre dicho inicio hasta el fin por pagina (PGSIZE) y con walk obtenemos
+una memoria virtual de nuestro pte (almacenada en el puntero), vemos si el valor de esta existe con PTE_V (dije mas arriba lo que hacia)
+,si no existe damos error, pero si existe desabilitamos el pte_w de lectura 
+(que tambien fue explicada mas arriba). Para el mun protect hacemos exatamente lo mismo, pero ahora en vez de desactivarlo lo activamos.
+Y asi funciona el codigo de esta tarea.
+
+Dentro de las dificultades que tuve fue que se me echo a perder el qemu,
+ya que no encontraba el lock (o algo por el estilo), y la verdad
+entender que se queria hacer fue dificil, me gaste la mitad del tiempo
+investigando respecto de las tablas, que hacen y que se queria hacer
+con la tarea.
+
+Algunos links utilizados:
+https://es.wikipedia.org/wiki/Protecci%C3%B3n_de_memoria
+https://man7.org/linux/man-pages/man2/mprotect.2.html
+https://github.com/zarif98sjs/xv6-memory-management-walkthrough
++ clases y videos en youtube
